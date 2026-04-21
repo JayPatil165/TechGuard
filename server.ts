@@ -17,10 +17,8 @@ async function startServer() {
 
   app.use(express.json());
 
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-
-  // API route for Hybrid Analysis
-  app.post("/api/analyze", async (req, res) => {
+  // API route for Local Neural Analysis (Python Component)
+  app.post("/api/local-analyze", async (req, res) => {
     const { text } = req.body;
     
     if (!text) {
@@ -28,14 +26,14 @@ async function startServer() {
     }
 
     try {
-      // 1. Local Deep Learning Analysis (Python Component)
+      console.log("Starting local neural analysis for:", text.substring(0, 50) + "...");
       const localResult = await new Promise((resolve) => {
-        // We use a safe string character escape for the command line
         const escapedText = text.replace(/"/g, '\\"');
-        exec(`python3 model_engine.py "${escapedText}"`, (error, stdout, stderr) => {
+        // Increase timeout for model loading
+        exec(`python3 model_engine.py "${escapedText}"`, { timeout: 10000 }, (error, stdout, stderr) => {
           if (error) {
-            console.error("Local Model Error:", stderr);
-            resolve({ status: "error", message: "Local model failed" });
+            console.error("Local Model Error:", stderr || error.message);
+            resolve({ status: "error", message: "Local model failed or timed out" });
           } else {
             try {
               resolve(JSON.parse(stdout));
@@ -46,37 +44,10 @@ async function startServer() {
         });
       });
 
-      // 2. Remote AI Reasoning (Gemini API)
-      const prompt = `You are a Senior Computer Solutions Expert. Analyze the following computer-related problem and provide a structured technical solution. 
-      Input description: "${text}"
-      
-      Requirements:
-      - problemSummary: Short summary of the detected problem.
-      - rootCause: Likely technical reason for the issue.
-      - solutions: Array of objects with title, steps (array), explanation, and difficulty (Easy/Intermediate/Advanced).
-      - resources: Array of objects with label, url, and type (Documentation/Video/Download/Article).
-      - urgency: High, Medium, or Low.`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-exp",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-        }
-      });
-
-      const aiData = JSON.parse(response.text);
-
-      // Combine Results
-      const finalResult = {
-        ...aiData,
-        localAnalysis: localResult
-      };
-
-      res.json(finalResult);
+      res.json(localResult);
     } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Analysis failed" });
+      console.error("Local Analysis Error:", err);
+      res.status(500).json({ error: "Local analysis failed" });
     }
   });
 

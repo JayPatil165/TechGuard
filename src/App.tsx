@@ -28,7 +28,11 @@ import {
   Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AnalysisResult, AnalysisHistory, TechnicalSolution, ResourceLink } from './types';
+import { GoogleGenAI, Type } from "@google/genai";
+import { AnalysisResult, AnalysisHistory, TechnicalSolution, ResourceLink, LocalNeuralResult } from './types';
+
+// Initialize Gemini in Frontend (as per best practices)
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const URGENCY_COLORS = {
   High: '#ef4444', 
@@ -69,21 +73,81 @@ export default function App() {
     setResult(null); // Clear previous result to show loading state properly
 
     try {
-      const response = await fetch('/api/analyze', {
+      // 1. Call Local Neural Engine (Backend Python)
+      const localPromise = fetch('/api/local-analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: inputText }),
+      }).then(res => res.ok ? res.json() : null).catch(() => null);
+
+      // 2. Call Reasoning Engine (Cloud Gemini)
+      const prompt = `You are a Senior Computer Solutions Expert. Analyze the following computer-related problem and provide a structured technical solution. 
+      Input description: "${inputText}"
+      
+      Requirements:
+      1. problemSummary: Short summary of the detected problem.
+      2. rootCause: Likely technical reason for the issue.
+      3. solutions: Array of objects with title, step-by-step instructions (steps), a simple explanation, and difficulty level (Easy/Intermediate/Advanced).
+      4. resources: Helpful links (realistic placeholder URLs) with labels and types (Documentation/Video/Download/Article).
+      5. urgency: High, Medium, or Low.`;
+
+      const aiPromise = ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              problemSummary: { type: Type.STRING },
+              rootCause: { type: Type.STRING },
+              solutions: { 
+                type: Type.ARRAY, 
+                items: { 
+                  type: Type.OBJECT,
+                  properties: {
+                    title: { type: Type.STRING },
+                    steps: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    explanation: { type: Type.STRING },
+                    difficulty: { type: Type.STRING, enum: ['Easy', 'Intermediate', 'Advanced'] }
+                  },
+                  required: ['title', 'steps', 'explanation', 'difficulty']
+                } 
+              },
+              resources: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    label: { type: Type.STRING },
+                    url: { type: Type.STRING },
+                    type: { type: Type.STRING, enum: ['Documentation', 'Video', 'Download', 'Article'] }
+                  },
+                  required: ['label', 'url', 'type']
+                }
+              },
+              urgency: { type: Type.STRING, enum: ['Low', 'Medium', 'High'] },
+            },
+            required: ['problemSummary', 'rootCause', 'solutions', 'resources', 'urgency']
+          }
+        }
       });
 
-      if (!response.ok) throw new Error("Analysis failed");
+      // Execute both in parallel for speed
+      const [localData, aiResponse] = await Promise.all([localPromise, aiPromise]);
+      
+      const data = JSON.parse(aiResponse.text);
+      const combinedResult: AnalysisResult = {
+        ...data,
+        localAnalysis: localData as LocalNeuralResult || undefined
+      };
 
-      const data = await response.json();
-      setResult(data);
+      setResult(combinedResult);
       
       const newEntry: AnalysisHistory = {
         id: crypto.randomUUID(),
         text: inputText,
-        result: data,
+        result: combinedResult,
         timestamp: Date.now()
       };
       
