@@ -14,19 +14,21 @@ def local_diagnostic(text):
     This runs entirely on your local CPU/GPU using weights from Hugging Face.
     """
         
-    technical_categories = ["Hardware Issue", "Software Bug", "Network Connectivity", "User Configuration", "Security/Virus"]
+    technical_categories = ["Networking & IT Infrastructure", "Power Backup Solutions", "CCTV & Security Systems", "Software & Cloud Services", "Computers & Peripherals"]
 
     text_lower = text.lower()
     scores = {cat: 0.1 for cat in technical_categories}
     
-    if any(k in text_lower for k in ["cable", "monitor", "screen", "keyboard", "mouse", "disk", "hardware"]):
-        scores["Hardware Issue"] = 0.85
-    if any(k in text_lower for k in ["install", "update", "crash", "bug", "app", "windows", "macos"]):
-        scores["Software Bug"] = 0.82
-    if any(k in text_lower for k in ["wifi", "internet", "router", "connection", "signal", "ping"]):
-        scores["Network Connectivity"] = 0.91
-    if any(k in text_lower for k in ["password", "virus", "hacked", "malware", "secure", "encrypted"]):
-        scores["Security/Virus"] = 0.88
+    if any(k in text_lower for k in ["network", "router", "switch", "optical", "lan", "wifi", "internet"]):
+        scores["Networking & IT Infrastructure"] = 0.85
+    if any(k in text_lower for k in ["power", "backup", "ups", "inverter", "battery", "electricity"]):
+        scores["Power Backup Solutions"] = 0.82
+    if any(k in text_lower for k in ["cctv", "camera", "dvr", "surveillance", "recording", "video"]):
+        scores["CCTV & Security Systems"] = 0.91
+    if any(k in text_lower for k in ["server", "cloud", "software", "application", "data", "database"]):
+        scores["Software & Cloud Services"] = 0.88
+    if any(k in text_lower for k in ["laptop", "desktop", "printer", "scanner", "keyboard", "mouse", "monitor"]):
+        scores["Computers & Peripherals"] = 0.86
 
     top_category = max(scores, key=scores.get)
     confidence = scores[top_category]

@@ -30,7 +30,7 @@ async function startServer() {
       const localResult = await new Promise((resolve) => {
         const escapedText = text.replace(/"/g, '\\"');
         // Increase timeout for model loading
-        exec(`python3 model_engine.py "${escapedText}"`, { timeout: 10000 }, (error, stdout, stderr) => {
+        exec(`python model_engine.py "${escapedText}"`, { timeout: 10000 }, (error, stdout, stderr) => {
           if (error) {
             console.error("Local Model Error:", stderr || error.message);
             resolve({ status: "error", message: "Local model failed or timed out" });

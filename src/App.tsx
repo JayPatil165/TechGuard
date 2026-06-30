@@ -47,10 +47,19 @@ export default function App() {
   const [history, setHistory] = useState<AnalysisHistory[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [username, setUsername] = useState<string>('');
+  const [followupText, setFollowupText] = useState('');
 
   // Load history from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('tech_guard_history');
+    let currentUser = localStorage.getItem('tech_guard_user');
+    if (!currentUser) {
+      currentUser = prompt('Enter your username to access your secure history:') || 'guest';
+      localStorage.setItem('tech_guard_user', currentUser);
+    }
+    setUsername(currentUser);
+
+    const saved = localStorage.getItem(`tech_guard_history_${currentUser}`);
     if (saved) {
       try {
         setHistory(JSON.parse(saved));
@@ -62,8 +71,10 @@ export default function App() {
 
   // Save history to localStorage
   useEffect(() => {
-    localStorage.setItem('tech_guard_history', JSON.stringify(history));
-  }, [history]);
+    if (username) {
+      localStorage.setItem(`tech_guard_history_${username}`, JSON.stringify(history));
+    }
+  }, [history, username]);
 
   const analyzeProblem = async () => {
     if (!inputText.trim()) return;
@@ -81,18 +92,12 @@ export default function App() {
       }).then(res => res.ok ? res.json() : null).catch(() => null);
 
       // 2. Call Reasoning Engine (Cloud Gemini)
-      const prompt = `You are a Senior Computer Solutions Expert. Analyze the following computer-related problem and provide a structured technical solution. 
-      Input description: "${inputText}"
-      
-      Requirements:
-      1. problemSummary: Short summary of the detected problem.
-      2. rootCause: Likely technical reason for the issue.
-      3. solutions: Array of objects with title, step-by-step instructions (steps), a simple explanation, and difficulty level (Easy/Intermediate/Advanced).
-      4. resources: Helpful links (realistic placeholder URLs) with labels and types (Documentation/Video/Download/Article).
-      5. urgency: High, Medium, or Low.`;
+      const prompt = `You are TechGuard AI, support agent for Jay Enterprises (IT Infrastructure, Networking, CCTV, Power Backup).
+Issue: "${inputText}"
+Reply with JSON: { "problemSummary": "...", "rootCause": "...", "solutions": [{ "title": "...", "steps": ["..."], "explanation": "...", "difficulty": "Easy|Intermediate|Advanced" }], "resources": [{ "label": "...", "url": "...", "type": "Documentation|Video|Download|Article" }], "urgency": "Low|Medium|High" }`;
 
       const aiPromise = ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-1.5-pro",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -152,9 +157,100 @@ export default function App() {
       };
       
       setHistory(prev => [newEntry, ...prev.slice(0, 19)]); // Keep last 20
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("AI Diagnosis failed. Please try again.");
+      const msg = err?.message || String(err);
+      const isLimitError = msg.includes('503') || msg.toLowerCase().includes('demand') || msg.toLowerCase().includes('quota') || msg.toLowerCase().includes('unavailable');
+      const errorMessage = isLimitError ? "API limit exhausted. Please wait a moment and try again." : msg;
+      setError(`AI Diagnosis failed: ${errorMessage}`);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleFollowup = async () => {
+    if (!followupText.trim() || !result) return;
+
+    setIsAnalyzing(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const prompt = `You are TechGuard AI for Jay Enterprises.
+Prev Issue: "${inputText}"
+Prev Summary: "${result.problemSummary}"
+User Follow-up: "${followupText}"
+Update diagnosis and reply with JSON: { "problemSummary": "...", "rootCause": "...", "solutions": [{ "title": "...", "steps": ["..."], "explanation": "...", "difficulty": "Easy|Intermediate|Advanced" }], "resources": [{ "label": "...", "url": "...", "type": "Documentation|Video|Download|Article" }], "urgency": "Low|Medium|High" }`;
+
+      const aiPromise = ai.models.generateContent({
+        model: "gemini-1.5-pro",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              problemSummary: { type: Type.STRING },
+              rootCause: { type: Type.STRING },
+              solutions: { 
+                type: Type.ARRAY, 
+                items: { 
+                  type: Type.OBJECT,
+                  properties: {
+                    title: { type: Type.STRING },
+                    steps: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    explanation: { type: Type.STRING },
+                    difficulty: { type: Type.STRING, enum: ['Easy', 'Intermediate', 'Advanced'] }
+                  },
+                  required: ['title', 'steps', 'explanation', 'difficulty']
+                } 
+              },
+              resources: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    label: { type: Type.STRING },
+                    url: { type: Type.STRING },
+                    type: { type: Type.STRING, enum: ['Documentation', 'Video', 'Download', 'Article'] }
+                  },
+                  required: ['label', 'url', 'type']
+                }
+              },
+              urgency: { type: Type.STRING, enum: ['Low', 'Medium', 'High'] },
+            },
+            required: ['problemSummary', 'rootCause', 'solutions', 'resources', 'urgency']
+          }
+        }
+      });
+
+      const aiResponse = await aiPromise;
+      const data = JSON.parse(aiResponse.text);
+      
+      const updatedResult: AnalysisResult = {
+        ...data,
+        localAnalysis: result.localAnalysis
+      };
+
+      setResult(updatedResult);
+      const newText = inputText + "\nFollow-up: " + followupText;
+      setInputText(newText);
+      setFollowupText('');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      const newEntry: AnalysisHistory = {
+        id: crypto.randomUUID(),
+        text: newText,
+        result: updatedResult,
+        timestamp: Date.now()
+      };
+      setHistory(prev => [newEntry, ...prev.slice(0, 19)]);
+    } catch (err: any) {
+      console.error(err);
+      const msg = err?.message || String(err);
+      const isLimitError = msg.includes('503') || msg.toLowerCase().includes('demand') || msg.toLowerCase().includes('quota') || msg.toLowerCase().includes('unavailable');
+      const errorMessage = isLimitError ? "API limit exhausted. Please wait a moment and try again." : msg;
+      setError(`AI Follow-up failed: ${errorMessage}`);
     } finally {
       setIsAnalyzing(false);
     }
@@ -184,20 +280,21 @@ export default function App() {
   const clearHistory = () => {
     if (confirm('Are you sure you want to clear your troubleshooting history?')) {
       setHistory([]);
-      localStorage.removeItem('tech_guard_history');
+      if (username) {
+        localStorage.removeItem(`tech_guard_history_${username}`);
+      }
     }
   };
-
-  return (
+return (
     <div className="min-h-screen bg-[#f1f5f9] text-[#1e293b] font-sans selection:bg-blue-100">
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm">
-        <div className="flex items-center gap-2">
-          <div className="bg-blue-600 p-2 rounded-xl">
-            <Cpu className="text-white w-6 h-6" />
+        <div className="flex items-center gap-3">
+          <img src="/jay-logo.png" alt="Jay Enterprises Logo" className="w-10 h-10 object-contain drop-shadow-md" />
+          <div className="flex flex-col">
+            <span className="font-black text-2xl tracking-tight text-indigo-950 leading-none">JAY ENTERPRISES</span>
+            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest leading-none mt-1">TechGuard IT Support</span>
           </div>
-          <span className="font-bold text-xl tracking-tight">TechGuard</span>
-          <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ml-1">AI Solutions</span>
         </div>
         <div className="flex gap-4 items-center">
           <button 
@@ -207,7 +304,6 @@ export default function App() {
             <History className="w-4 h-4" />
             <span className="hidden sm:inline">History</span>
           </button>
-          <a href="#" className="hidden md:block text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors">Documentation</a>
         </div>
       </nav>
 
@@ -300,8 +396,8 @@ export default function App() {
               </div>
               
               <p className="text-slate-500 text-sm mb-6 leading-relaxed max-w-2xl">
-                Describe the computer symptoms, technical issues, or hardware failures you are experiencing. 
-                TechGuard AI will diagnose the root cause and provide instant solutions.
+                Describe your IT infrastructure, networking, CCTV, or hardware issue. 
+                TechGuard AI by Jay Enterprises will diagnose the root cause and provide optimized solutions.
               </p>
 
               <div className="relative">
@@ -324,7 +420,7 @@ export default function App() {
                   className={`flex-1 py-4 rounded-2xl flex items-center justify-center gap-3 font-bold text-white transition-all shadow-lg
                     ${isAnalyzing || !inputText.trim() 
                       ? 'bg-slate-300 cursor-not-allowed shadow-none' 
-                      : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-500/30 active:scale-[0.98]'
+                      : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 hover:shadow-indigo-500/30 active:scale-[0.98]'
                     }`}
                 >
                   {isAnalyzing ? (
@@ -346,6 +442,24 @@ export default function App() {
                   Clear Input
                 </button>
               </div>
+
+              {/* Error Message Display */}
+              <AnimatePresence>
+                {error && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-600 flex items-start gap-3"
+                  >
+                    <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-bold text-sm">Diagnosis Error</h4>
+                      <p className="text-sm">{error}</p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </section>
 
@@ -388,10 +502,10 @@ export default function App() {
                       {result.problemSummary}
                     </h2>
                     {/* Local Neural Engine Tag */}
-                    {result.localAnalysis && (
+                    {result.localAnalysis && result.localAnalysis.confidence !== undefined && (
                       <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
                             <Cpu className="w-4 h-4 text-white" />
                           </div>
                           <div>
@@ -418,16 +532,16 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="bg-blue-600 p-8 rounded-3xl shadow-xl shadow-blue-500/20 text-white flex flex-col justify-between">
+                  <div className="bg-gradient-to-br from-indigo-900 to-blue-900 p-8 rounded-3xl shadow-xl shadow-indigo-900/20 text-white flex flex-col justify-between">
                     <div>
-                      <span className="font-bold text-blue-200 uppercase tracking-widest text-[10px] block mb-2">Root Cause Analysis</span>
-                      <p className="text-sm leading-relaxed font-medium">
+                      <span className="font-bold text-indigo-300 uppercase tracking-widest text-[10px] block mb-2">Root Cause Analysis</span>
+                      <p className="text-sm leading-relaxed font-medium text-slate-100">
                         {result.rootCause}
                       </p>
                     </div>
                     <div className="mt-6 flex gap-2">
-                       <CheckCircle2 className="w-5 h-5 text-blue-300" />
-                       <span className="text-[10px] font-bold uppercase tracking-wider text-blue-100">Verified Solution Set</span>
+                       <CheckCircle2 className="w-5 h-5 text-indigo-400" />
+                       <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-200">Verified Jay Enterprises Solution</span>
                     </div>
                   </div>
                 </div>
@@ -437,7 +551,7 @@ export default function App() {
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xl font-bold flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-blue-600" />
+                        <Sparkles className="w-5 h-5 text-indigo-600" />
                         Step-by-Step Fixes
                       </h3>
                       <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{result.solutions.length} Methods Found</span>
@@ -467,7 +581,7 @@ export default function App() {
                           <div className="space-y-3">
                             {solution.steps.map((step, stepIdx) => (
                               <div key={stepIdx} className="flex gap-3 items-start group/step">
-                                <span className="flex-shrink-0 w-5 h-5 bg-blue-50 text-blue-600 rounded-md flex items-center justify-center text-[10px] font-bold group-hover/step:bg-blue-600 group-hover/step:text-white transition-colors">
+                                <span className="flex-shrink-0 w-5 h-5 bg-indigo-50 text-indigo-600 rounded-md flex items-center justify-center text-[10px] font-bold group-hover/step:bg-indigo-600 group-hover/step:text-white transition-colors">
                                   {stepIdx + 1}
                                 </span>
                                 <span className="text-sm text-slate-600 leading-tight pt-0.5">{step}</span>
@@ -482,7 +596,7 @@ export default function App() {
                   {/* Resources & Links */}
                   <div className="space-y-6">
                     <h3 className="text-xl font-bold flex items-center gap-2">
-                      <ExternalLink className="w-5 h-5 text-blue-600" />
+                      <ExternalLink className="w-5 h-5 text-indigo-600" />
                       Helpful Links & Resources
                     </h3>
                     
@@ -505,7 +619,7 @@ export default function App() {
                            >
                              <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all">
                                <div className="flex items-center gap-3">
-                                 <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-all">
+                                 <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-all">
                                     {getResourceIcon(link.type)}
                                  </div>
                                  <div className="flex flex-col">
@@ -538,12 +652,12 @@ export default function App() {
                     <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
                       <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-2">
-                          <TrendingUp className="text-blue-600 w-5 h-5" />
+                          <TrendingUp className="text-indigo-600 w-5 h-5" />
                           <h3 className="font-bold text-slate-800">Support Metrics</h3>
                         </div>
                       </div>
-                      <div className="h-48">
-                        <ResponsiveContainer width="100%" height="100%">
+                      <div className="h-48 w-full">
+                        <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
                           <BarChart data={[
                             { name: 'Complexity', value: result.solutions.some(s => s.difficulty === 'Advanced') ? 95 : 60 },
                             { name: 'Risk Level', value: result.urgency === 'High' ? 85 : 40 },
@@ -560,8 +674,8 @@ export default function App() {
                             <Tooltip 
                               contentStyle={{ borderRadius: '12px', border: 'none', shadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                             />
-                            <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40}>
-                              <Cell fill="#3b82f6" />
+                            <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40} label={{ position: 'top', fill: '#64748b', fontSize: 10, formatter: (val: number) => `${val}%` }}>
+                              <Cell fill="#4f46e5" />
                               <Cell fill="#f59e0b" />
                               <Cell fill="#10b981" />
                             </Bar>
@@ -572,6 +686,36 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Follow-up Section */}
+                <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 mt-8">
+                  <h3 className="text-xl font-bold flex items-center gap-2 mb-4">
+                    <MessageSquare className="w-5 h-5 text-blue-600" />
+                    Follow-up Chat
+                  </h3>
+                  <p className="text-slate-500 text-sm mb-4">
+                    Still need help? Provide more details or ask a follow-up question, and we'll regenerate the entire analysis.
+                  </p>
+                  <textarea
+                    value={followupText}
+                    onChange={(e) => setFollowupText(e.target.value)}
+                    placeholder="Ex: I tried the SMC reset but the issue still persists. The fan noise is louder now..."
+                    className="w-full h-32 p-5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none resize-none text-base placeholder:text-slate-400 shadow-inner mb-4"
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      onClick={handleFollowup}
+                      disabled={isAnalyzing || !followupText.trim()}
+                      className={`px-8 py-4 rounded-2xl text-sm font-bold flex items-center justify-center gap-3 transition-all shadow-lg
+                        ${isAnalyzing || !followupText.trim()
+                          ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                          : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20'
+                        }`}
+                    >
+                      {isAnalyzing ? 'Regenerating...' : 'Generate again'}
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex justify-center">
                   <button 
                     onClick={() => {
@@ -579,7 +723,7 @@ export default function App() {
                       setResult(null);
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
-                    className="px-8 py-4 bg-blue-600 text-white rounded-2xl text-sm font-bold flex items-center justify-center gap-3 hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20"
+                    className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-2xl text-sm font-bold flex items-center justify-center gap-3 hover:from-indigo-700 hover:to-blue-700 transition-all shadow-lg shadow-indigo-500/20"
                   >
                     Diagnose Another Problem
                   </button>
@@ -590,7 +734,43 @@ export default function App() {
         </div>
       </main>
 
-
+      {/* Footer */}
+      <footer className="bg-slate-900 text-slate-300 py-6 mt-8 border-t border-indigo-500/20">
+        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center md:items-start gap-6">
+          
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <img src="/jay-logo.png" alt="Jay Enterprises Logo" className="w-6 h-6 object-contain" />
+              <h3 className="text-lg font-black text-white tracking-tight">JAY ENTERPRISES</h3>
+            </div>
+            <p className="text-xs text-indigo-300 font-bold mb-2 uppercase tracking-wider">IT Infrastructure Developer and Support</p>
+            <div className="grid grid-cols-2 gap-x-4 text-xs text-slate-400 font-medium">
+              <ul className="space-y-1">
+                <li>• Networking Security</li>
+                <li>• Network Infrastructure</li>
+                <li>• Internet & Cloud Services</li>
+              </ul>
+              <ul className="space-y-1">
+                <li>• Power Backup Solutions</li>
+                <li>• Computers and Peripherals</li>
+                <li>• CCTV & Optical Network Solutions</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="flex-1 flex flex-col text-xs space-y-2 pt-4 md:pt-0 border-t md:border-t-0 md:border-l border-slate-700/50 md:pl-8">
+            <h4 className="font-bold text-white uppercase tracking-wider mb-1">Contact Us</h4>
+            <div className="space-y-1.5">
+              <p className="text-slate-300 flex items-start"><span className="text-indigo-400 font-bold w-16 shrink-0">Address:</span><span className="flex-1">Shop No. 3, Shri Sudarshan Plaza, MSEB-Vrundavan Vilas Road, Vishrambag, Sangli, 416416</span></p>
+              <p className="text-slate-300 flex items-start"><span className="text-indigo-400 font-bold w-16 shrink-0">Phone:</span><span className="flex-1">9850833066, 9405678249</span></p>
+              <p className="text-slate-300 flex items-start"><span className="text-indigo-400 font-bold w-16 shrink-0">Email:</span><span className="flex-1">jayenterprisessangli@gmail.com</span></p>
+            </div>
+          </div>
+        </div>
+        <div className="text-center mt-6 text-[10px] text-slate-500 font-medium tracking-wide">
+          © {new Date().getFullYear()} Jay Enterprises. Offering our best IT services for the last 25 years...
+        </div>
+      </footer>
     </div>
   );
 }
