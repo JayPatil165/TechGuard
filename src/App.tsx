@@ -56,7 +56,6 @@ export default function App() {
   // Auth state
   const [authStatus, setAuthStatus] = useState<'idle' | 'staff' | 'guest'>('idle');
   const [loginUsername, setLoginUsername] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
 
   // Load history from localStorage
   useEffect(() => {
@@ -338,18 +337,6 @@ Update diagnosis and reply with JSON: { "problemSummary": "...", "rootCause": ".
                   placeholder="Enter your username"
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-slate-800 font-medium"
                   required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-indigo-500" /> Password
-                </label>
-                <input 
-                  type="password" 
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="Enter staff password"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-slate-800 font-medium"
                 />
               </div>
               
