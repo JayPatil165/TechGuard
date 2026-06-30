@@ -319,7 +319,7 @@ Update diagnosis and reply with JSON: { "problemSummary": "...", "rootCause": ".
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 selection:bg-indigo-500/30">
         <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-800">
           <div className="bg-gradient-to-br from-indigo-950 to-slate-900 p-8 text-center border-b border-indigo-900/50 relative overflow-hidden">
-             <img src="./jay-logo.png" alt="Jay Enterprises Logo" className="w-16 h-16 object-contain mx-auto mb-4 relative z-10 drop-shadow-xl" />
+             <img src={`${import.meta.env.BASE_URL}jay-logo.png`} alt="Jay Enterprises Logo" className="w-16 h-16 object-contain mx-auto mb-4 relative z-10 drop-shadow-xl" />
              <h1 className="text-2xl font-black text-white tracking-tight relative z-10">JAY ENTERPRISES</h1>
              <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest mt-1 relative z-10">TechGuard AI Terminal</p>
           </div>
@@ -370,7 +370,7 @@ Update diagnosis and reply with JSON: { "problemSummary": "...", "rootCause": ".
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-3">
-          <img src="./jay-logo.png" alt="Jay Enterprises Logo" className="w-10 h-10 object-contain drop-shadow-md" />
+          <img src={`${import.meta.env.BASE_URL}jay-logo.png`} alt="Jay Enterprises Logo" className="w-10 h-10 object-contain drop-shadow-md" />
           <div className="flex flex-col">
             <span className="font-black text-2xl tracking-tight text-indigo-950 leading-none">JAY ENTERPRISES</span>
             <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest leading-none mt-1">TechGuard IT Support</span>
@@ -837,7 +837,7 @@ Update diagnosis and reply with JSON: { "problemSummary": "...", "rootCause": ".
           
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <img src="./jay-logo.png" alt="Jay Enterprises Logo" className="w-6 h-6 object-contain" />
+              <img src={`${import.meta.env.BASE_URL}jay-logo.png`} alt="Jay Enterprises Logo" className="w-6 h-6 object-contain" />
               <h3 className="text-lg font-black text-white tracking-tight">JAY ENTERPRISES</h3>
             </div>
             <p className="text-xs text-indigo-300 font-bold mb-2 uppercase tracking-wider">IT Infrastructure Developer and Support</p>
