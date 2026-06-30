@@ -10,18 +10,6 @@ import {
 import { 
   TrendingUp, 
   MessageSquare, 
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import React, { useState, useEffect } from 'react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
-} from 'recharts';
-import { 
-  TrendingUp, 
-  MessageSquare, 
   Search, 
   Cpu, 
   AlertCircle, 
