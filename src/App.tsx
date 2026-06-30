@@ -125,7 +125,7 @@ Issue: "${inputText}"
 Reply with JSON: { "problemSummary": "...", "rootCause": "...", "solutions": [{ "title": "...", "steps": ["..."], "explanation": "...", "difficulty": "Easy|Intermediate|Advanced" }], "resources": [{ "label": "...", "url": "...", "type": "Documentation|Video|Download|Article" }], "urgency": "Low|Medium|High" }`;
 
       const aiPromise = ai.models.generateContent({
-        model: "gemini-1.5-pro",
+        model: "gemini-3-flash-preview",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -211,7 +211,7 @@ User Follow-up: "${followupText}"
 Update diagnosis and reply with JSON: { "problemSummary": "...", "rootCause": "...", "solutions": [{ "title": "...", "steps": ["..."], "explanation": "...", "difficulty": "Easy|Intermediate|Advanced" }], "resources": [{ "label": "...", "url": "...", "type": "Documentation|Video|Download|Article" }], "urgency": "Low|Medium|High" }`;
 
       const aiPromise = ai.models.generateContent({
-        model: "gemini-1.5-pro",
+        model: "gemini-3-flash-preview",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
