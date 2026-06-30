@@ -10,6 +10,18 @@ import {
 import { 
   TrendingUp, 
   MessageSquare, 
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useEffect } from 'react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
+} from 'recharts';
+import { 
+  TrendingUp, 
+  MessageSquare, 
   Search, 
   Cpu, 
   AlertCircle, 
@@ -25,7 +37,10 @@ import {
   Download,
   FileText,
   Clock,
-  Zap
+  Zap,
+  Lock,
+  User,
+  ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -50,31 +65,57 @@ export default function App() {
   const [username, setUsername] = useState<string>('');
   const [followupText, setFollowupText] = useState('');
 
+  // Auth state
+  const [authStatus, setAuthStatus] = useState<'idle' | 'staff' | 'guest'>('idle');
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+
   // Load history from localStorage
   useEffect(() => {
-    let currentUser = localStorage.getItem('tech_guard_user');
-    if (!currentUser) {
-      currentUser = prompt('Enter your username to access your secure history:') || 'guest';
-      localStorage.setItem('tech_guard_user', currentUser);
-    }
-    setUsername(currentUser);
-
-    const saved = localStorage.getItem(`tech_guard_history_${currentUser}`);
-    if (saved) {
-      try {
-        setHistory(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to load history", e);
+    const currentUser = localStorage.getItem('tech_guard_user');
+    if (currentUser && currentUser !== 'guest') {
+      setUsername(currentUser);
+      setAuthStatus('staff');
+      const saved = localStorage.getItem(`tech_guard_history_${currentUser}`);
+      if (saved) {
+        try {
+          setHistory(JSON.parse(saved));
+        } catch (e) {
+          console.error("Failed to load history", e);
+        }
       }
     }
   }, []);
 
   // Save history to localStorage
   useEffect(() => {
-    if (username) {
+    if (authStatus === 'staff' && username) {
       localStorage.setItem(`tech_guard_history_${username}`, JSON.stringify(history));
     }
-  }, [history, username]);
+  }, [history, username, authStatus]);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loginUsername.trim()) {
+      setUsername(loginUsername.trim());
+      setAuthStatus('staff');
+      localStorage.setItem('tech_guard_user', loginUsername.trim());
+      
+      const saved = localStorage.getItem(`tech_guard_history_${loginUsername.trim()}`);
+      if (saved) {
+        try { setHistory(JSON.parse(saved)); } catch (e) {}
+      } else {
+        setHistory([]);
+      }
+    }
+  };
+
+  const handleGuest = () => {
+    setUsername('guest');
+    setAuthStatus('guest');
+    setHistory([]);
+    // Do NOT save guest user in localStorage for privacy
+  };
 
   const analyzeProblem = async () => {
     if (!inputText.trim()) return;
@@ -285,24 +326,105 @@ Update diagnosis and reply with JSON: { "problemSummary": "...", "rootCause": ".
       }
     }
   };
-return (
+
+  if (authStatus === 'idle') {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 selection:bg-indigo-500/30">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-800">
+          <div className="bg-gradient-to-br from-indigo-950 to-slate-900 p-8 text-center border-b border-indigo-900/50 relative overflow-hidden">
+             <img src="./jay-logo.png" alt="Jay Enterprises Logo" className="w-16 h-16 object-contain mx-auto mb-4 relative z-10 drop-shadow-xl" />
+             <h1 className="text-2xl font-black text-white tracking-tight relative z-10">JAY ENTERPRISES</h1>
+             <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest mt-1 relative z-10">TechGuard AI Terminal</p>
+          </div>
+          
+          <div className="p-8">
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <User className="w-4 h-4 text-indigo-500" /> Staff ID
+                </label>
+                <input 
+                  type="text" 
+                  value={loginUsername}
+                  onChange={(e) => setLoginUsername(e.target.value)}
+                  placeholder="Enter your username"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-slate-800 font-medium"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-indigo-500" /> Password
+                </label>
+                <input 
+                  type="password" 
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="Enter staff password"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-slate-800 font-medium"
+                />
+              </div>
+              
+              <button 
+                type="submit"
+                className="w-full py-3.5 mt-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl font-bold tracking-wide shadow-lg shadow-indigo-500/30 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                <ShieldCheck className="w-5 h-5" /> Secure Login
+              </button>
+            </form>
+
+            <div className="mt-8 pt-6 border-t border-slate-100">
+              <button 
+                onClick={handleGuest}
+                className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold tracking-wide transition-all active:scale-[0.98]"
+              >
+                Continue as Public Guest
+              </button>
+              <p className="text-center text-[10px] text-slate-400 mt-4 leading-relaxed font-medium px-4">
+                Guest mode does not save diagnostic history and resets upon closing.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
     <div className="min-h-screen bg-[#f1f5f9] text-[#1e293b] font-sans selection:bg-blue-100">
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-3">
-          <img src="/jay-logo.png" alt="Jay Enterprises Logo" className="w-10 h-10 object-contain drop-shadow-md" />
+          <img src="./jay-logo.png" alt="Jay Enterprises Logo" className="w-10 h-10 object-contain drop-shadow-md" />
           <div className="flex flex-col">
             <span className="font-black text-2xl tracking-tight text-indigo-950 leading-none">JAY ENTERPRISES</span>
             <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest leading-none mt-1">TechGuard IT Support</span>
           </div>
         </div>
         <div className="flex gap-4 items-center">
+          {authStatus === 'staff' ? (
+            <button 
+              onClick={() => setShowHistory(!showHistory)}
+              className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors"
+            >
+              <History className="w-4 h-4" />
+              <span className="hidden sm:inline">History</span>
+            </button>
+          ) : (
+            <span className="text-xs font-bold text-amber-500 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 shadow-sm flex items-center gap-2">
+              <User className="w-3 h-3" /> GUEST
+            </span>
+          )}
           <button 
-            onClick={() => setShowHistory(!showHistory)}
-            className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors"
+            onClick={() => {
+              setAuthStatus('idle');
+              setHistory([]);
+              setUsername('');
+              localStorage.removeItem('tech_guard_user');
+            }}
+            className="text-xs font-bold text-slate-400 hover:text-slate-500 transition-colors ml-4 underline underline-offset-4"
           >
-            <History className="w-4 h-4" />
-            <span className="hidden sm:inline">History</span>
+            Sign Out
           </button>
         </div>
       </nav>
@@ -740,7 +862,7 @@ return (
           
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <img src="/jay-logo.png" alt="Jay Enterprises Logo" className="w-6 h-6 object-contain" />
+              <img src="./jay-logo.png" alt="Jay Enterprises Logo" className="w-6 h-6 object-contain" />
               <h3 className="text-lg font-black text-white tracking-tight">JAY ENTERPRISES</h3>
             </div>
             <p className="text-xs text-indigo-300 font-bold mb-2 uppercase tracking-wider">IT Infrastructure Developer and Support</p>
