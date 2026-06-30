@@ -122,7 +122,8 @@ export default function App() {
       // 2. Call Reasoning Engine (Cloud Gemini)
       const prompt = `You are TechGuard AI, support agent for Jay Enterprises (IT Infrastructure, Networking, CCTV, Power Backup).
 Issue: "${inputText}"
-Reply with JSON: { "problemSummary": "...", "rootCause": "...", "solutions": [{ "title": "...", "steps": ["..."], "explanation": "...", "difficulty": "Easy|Intermediate|Advanced" }], "resources": [{ "label": "...", "url": "...", "type": "Documentation|Video|Download|Article" }], "urgency": "Low|Medium|High" }`;
+Reply with JSON: { "problemSummary": "...", "rootCause": "...", "solutions": [{ "title": "...", "steps": ["..."], "explanation": "...", "difficulty": "Easy|Intermediate|Advanced" }], "resources": [{ "label": "...", "url": "...", "type": "Documentation|Video|Download|Article" }], "urgency": "Low|Medium|High" }
+IMPORTANT: For the 'resources' array, you MUST provide ACTUAL, REAL, WORKING links (e.g., real YouTube search links like 'https://www.youtube.com/results?search_query=...', real Microsoft Docs, or real Google searches). DO NOT invent fake URLs or fake jayenterprises.com links.`;
 
       const aiPromise = ai.models.generateContent({
         model: "gemini-3-flash-preview",
@@ -208,7 +209,8 @@ Reply with JSON: { "problemSummary": "...", "rootCause": "...", "solutions": [{ 
 Prev Issue: "${inputText}"
 Prev Summary: "${result.problemSummary}"
 User Follow-up: "${followupText}"
-Update diagnosis and reply with JSON: { "problemSummary": "...", "rootCause": "...", "solutions": [{ "title": "...", "steps": ["..."], "explanation": "...", "difficulty": "Easy|Intermediate|Advanced" }], "resources": [{ "label": "...", "url": "...", "type": "Documentation|Video|Download|Article" }], "urgency": "Low|Medium|High" }`;
+Update diagnosis and reply with JSON: { "problemSummary": "...", "rootCause": "...", "solutions": [{ "title": "...", "steps": ["..."], "explanation": "...", "difficulty": "Easy|Intermediate|Advanced" }], "resources": [{ "label": "...", "url": "...", "type": "Documentation|Video|Download|Article" }], "urgency": "Low|Medium|High" }
+IMPORTANT: For the 'resources' array, you MUST provide ACTUAL, REAL, WORKING links (e.g., real YouTube search links like 'https://www.youtube.com/results?search_query=...', real Microsoft Docs, or real Google searches). DO NOT invent fake URLs or fake jayenterprises.com links.`;
 
       const aiPromise = ai.models.generateContent({
         model: "gemini-3-flash-preview",
@@ -413,7 +415,7 @@ Update diagnosis and reply with JSON: { "problemSummary": "...", "rootCause": ".
               initial={{ x: -300, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -300, opacity: 0 }}
-              className="fixed inset-y-0 left-0 w-80 bg-white z-[60] shadow-2xl border-r border-slate-200 lg:static lg:col-span-3 lg:h-[calc(100vh-120px)] lg:bg-transparent lg:shadow-none lg:border-none overflow-y-auto"
+              className="fixed top-[88px] bottom-0 left-0 w-80 bg-white z-[40] shadow-2xl border-r border-slate-200 lg:static lg:col-span-3 lg:h-[calc(100vh-120px)] lg:bg-transparent lg:shadow-none lg:border-none overflow-y-auto"
             >
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
