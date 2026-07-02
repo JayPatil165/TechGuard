@@ -123,7 +123,9 @@ export default function App() {
       const prompt = `You are TechGuard AI, support agent for Jay Enterprises (IT Infrastructure, Networking, CCTV, Power Backup).
 Issue: "${inputText}"
 Reply with JSON: { "problemSummary": "...", "rootCause": "...", "solutions": [{ "title": "...", "steps": ["..."], "explanation": "...", "difficulty": "Easy|Intermediate|Advanced" }], "resources": [{ "label": "...", "url": "...", "type": "Documentation|Video|Download|Article" }], "urgency": "Low|Medium|High" }
-IMPORTANT: For the 'resources' array, you MUST provide ACTUAL, REAL, WORKING links (e.g., real YouTube search links like 'https://www.youtube.com/results?search_query=...', real Microsoft Docs, or real Google searches). DO NOT invent fake URLs or fake jayenterprises.com links.`;
+CRITICAL RULE FOR RESOURCES: Do NOT try to guess direct URLs to articles, because they often result in 404 broken links. You MUST ONLY provide Google Search links or YouTube Search links.
+Example: 'https://www.google.com/search?q=reset+windows+network+stack+site:microsoft.com'
+Example: 'https://www.youtube.com/results?search_query=how+to+fix+laptop+black+screen'`;
 
       const aiPromise = ai.models.generateContent({
         model: "gemini-3-flash-preview",
@@ -210,7 +212,9 @@ Prev Issue: "${inputText}"
 Prev Summary: "${result.problemSummary}"
 User Follow-up: "${followupText}"
 Update diagnosis and reply with JSON: { "problemSummary": "...", "rootCause": "...", "solutions": [{ "title": "...", "steps": ["..."], "explanation": "...", "difficulty": "Easy|Intermediate|Advanced" }], "resources": [{ "label": "...", "url": "...", "type": "Documentation|Video|Download|Article" }], "urgency": "Low|Medium|High" }
-IMPORTANT: For the 'resources' array, you MUST provide ACTUAL, REAL, WORKING links (e.g., real YouTube search links like 'https://www.youtube.com/results?search_query=...', real Microsoft Docs, or real Google searches). DO NOT invent fake URLs or fake jayenterprises.com links.`;
+CRITICAL RULE FOR RESOURCES: Do NOT try to guess direct URLs to articles, because they often result in 404 broken links. You MUST ONLY provide Google Search links or YouTube Search links.
+Example: 'https://www.google.com/search?q=reset+windows+network+stack+site:microsoft.com'
+Example: 'https://www.youtube.com/results?search_query=how+to+fix+laptop+black+screen'`;
 
       const aiPromise = ai.models.generateContent({
         model: "gemini-3-flash-preview",
